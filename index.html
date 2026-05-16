@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Memory CARD</title>
+
+<style>
+    body{
+        margin:0;
+        font-family:Arial;
+        background:#000010;
+        color:white;
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        min-height:100vh;
+        overflow:hidden;
+        flex-direction:column;
+    }
+
+    /* ── GALAXY / STARFIELD ── */
+    #galaxy-bg{
+        position:fixed;
+        top:0; left:0;
+        width:100%; height:100%;
+        z-index:0;
+        pointer-events:none;
+    }
+
+    /* Nebula glow layers */
+    #galaxy-bg::before{
+        content:'';
+        position:absolute;
+        inset:0;
+        background:
+            radial-gradient(ellipse 70% 50% at 20% 30%, rgba(80,0,160,0.45) 0%, transparent 70%),
+            radial-gradient(ellipse 50% 40% at 80% 70%, rgba(0,60,160,0.40) 0%, transparent 70%),
+            radial-gradient(ellipse 60% 50% at 55% 50%, rgba(10,0,40,0.85) 0%, transparent 80%);
+    }
+
+    /* Milky-way band */
+    #galaxy-bg::after{
+        content:'';
+        position:absolute;
+        inset:0;
+        background: linear-gradient(
+            125deg,
+            transparent 30%,
+            rgba(120,60,220,0.12) 45%,
+            rgba(60,120,255,0.10) 55%,
+            transparent 70%
+        );
+    }
+
+    /* Star canvas sits inside #galaxy-bg */
+    #starCanvas{
+        position:absolute;
+        inset:0;
+        width:100%; height:100%;
+    }
+
+    /* Everything else above the bg */
+    .screen, #confetti{ position:relative; z-index:1; }
+
+    .screen{display:none; width:100%; max-width:850px; text-align:center; margin:0 auto;}
+    .active{display:block;}
+
+    h1{letter-spacing:3px;}
+
+    button, select{
+        padding:10px;
+        margin:5px;
+        border:none;
+        border-radius:10px;
+        cursor:pointer;
+        font-weight:bold;
+    }
+
+    button{background:#6a0dad; color:white; transition:0.3s;}
+    button:hover{transform:scale(1.05);}
+
+    .menu-btn{width:220px; display:block; margin:10px auto; font-size:18px;}
+
+    .levels{
+        display:grid;
+        grid-template-columns:repeat(4,1fr);
+        gap:10px;
+        margin-top:20px;
+    }
+
+    .level{
+        padding:18px;
+        background:rgba(255,255,255,0.08);
+        border-radius:12px;
+        cursor:pointer;
+        transition:0.3s;
+    }
+    .level:hover{transform:scale(1.05); background:rgba(255,255,255,0.18);}
+
+    .locked{
+        opacity:0.3;
+        pointer-events:none;
+    }
+
+    .board{
+        display:grid;
+        gap:10px;
+        justify-content:center;
+        margin-top:10px;
+    }
+
+    .card{
+        width:65px;
+        height:65px;
+        perspective:1000px;
+        cursor:pointer;
+    }
+
+    .inner{
+        width:100%; height:100%;
+        position:relative;
+        transform-style:preserve-3d;
+        transition:0.5s;
+    }
+
+    .flip .inner{transform:rotateY(180deg);}
+
+    .front,.back{
+        position:absolute;
+        width:100%;height:100%;
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        border-radius:10px;
+        backface-visibility:hidden;
+        font-size:22px;
+    }
+
+    .front{background:rgba(255,255,255,0.08);}
+    .back{background:white;color:black; transform:rotateY(180deg);}
+
+    .topbar{
+        margin:10px;
+        display:flex;
+        justify-content:space-between;
+        font-size:14px;
+        opacity:0.9;
+    }
+
+    .confetti{
+        position:fixed;
+        top:0;
+        left:0;
+        width:100%;
+        height:100%;
+        pointer-events:none;
+        overflow:hidden;
+        z-index:2;
+    }
+
+    .piece{
+        position:absolute;
+        width:8px;
+        height:12px;
+        background:red;
+        animation:fall 2s linear forwards;
+    }
+
+    @keyframes fall{
+        to{transform:translateY(100vh) rotate(720deg); opacity:0;}
+    }
+</style>
+</head>
+<body>
+
+<!-- Galaxy Background -->
+<div id="galaxy-bg">
+    <canvas id="starCanvas"></canvas>
+</div>
+
+<div id="confetti" class="confetti"></div>
+
+<!-- MENU -->
+<div id="menu" class="screen active">
+    <h1>MEMORY CARD</h1>
+    <button class="menu-btn" onclick="showPlay()">▶ PLAY</button>
+    <button class="menu-btn" onclick="showSettings()">⚙ SETTINGS</button>
+    <button class="menu-btn" onclick="resetProgress()">♻ RESET PROGRESS</button>
+</div>
+
+<!-- SETTINGS -->
+<div id="settings" class="screen">
+    <h1>SETTINGS</h1>
+
+    Sound
+    <select id="sound">
+        <option value="on">ON</option>
+        <option value="off">OFF</option>
+    </select>
+
+    <br><br>
+
+    Grid
+    <select id="grid">
+        <option value="4">4x4</option>
+        <option value="6">6x6</option>
+        <option value="8">8x8</option>
+    </select>
+
+    <br><br>
+
+    Theme
+    <select id="theme">
+        <option value="emojis">Emojis</option>
+        <option value="animals">Animals</option>
+        <option value="fruits">Fruits</option>
+        <option value="sports">Sports</option>
+        <option value="vehicles">Vehicles</option>
+        <option value="space">Space</option>
+    </select>
+
+    <br><br>
+
+    <button onclick="backMenu()">BACK</button>
+</div>
+
+<!-- LEVELS -->
+<div id="levels" class="screen">
+    <h1>LEVELS</h1>
+    <div class="levels" id="levelBox"></div>
+    <button onclick="backMenu()">BACK</button>
+</div>
+
+<!-- GAME -->
+<div id="game" class="screen">
+    <div class="topbar">
+        <div>Moves: <span id="moves">0</span></div>
+        <div>Time: <span id="time">0</span>s</div>
+        <div>Level: <span id="lvl">1</span></div>
+    </div>
+
+    <div class="board" id="board"></div>
+
+    <button onclick="backLevels()">EXIT</button>
+</div>
+
+<script>
+/* ── STARFIELD ── */
+(function(){
+    const canvas = document.getElementById('starCanvas');
+    const ctx = canvas.getContext('2d');
+    let W, H, stars = [], shooters = [];
+
+    function resize(){
+        W = canvas.width  = window.innerWidth;
+        H = canvas.height = window.innerHeight;
+    }
+
+    function initStars(){
+        stars = [];
+        for(let i = 0; i < 320; i++){
+            stars.push({
+                x: Math.random()*W,
+                y: Math.random()*H,
+                r: Math.random()*1.4 + 0.2,
+                alpha: Math.random()*0.6 + 0.2,
+                twinkleSpeed: Math.random()*0.02 + 0.005,
+                twinkleDir: Math.random() > 0.5 ? 1 : -1
+            });
+        }
+    }
+
+    function spawnShooter(){
+        shooters.push({
+            x: Math.random()*W*0.7,
+            y: Math.random()*H*0.4,
+            len: 120 + Math.random()*80,
+            speed: 6 + Math.random()*6,
+            alpha: 1,
+            angle: Math.PI/5
+        });
+    }
+
+    setInterval(spawnShooter, 3500);
+
+    function draw(){
+        ctx.clearRect(0,0,W,H);
+
+        /* stars */
+        stars.forEach(s => {
+            s.alpha += s.twinkleSpeed * s.twinkleDir;
+            if(s.alpha >= 1 || s.alpha <= 0.1) s.twinkleDir *= -1;
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+            ctx.fillStyle = `rgba(255,255,255,${s.alpha.toFixed(2)})`;
+            ctx.fill();
+        });
+
+        /* shooting stars */
+        shooters = shooters.filter(s => s.alpha > 0);
+        shooters.forEach(s => {
+            const dx = Math.cos(s.angle)*s.len;
+            const dy = Math.sin(s.angle)*s.len;
+            const grad = ctx.createLinearGradient(s.x, s.y, s.x-dx, s.y-dy);
+            grad.addColorStop(0, `rgba(255,255,255,${s.alpha.toFixed(2)})`);
+            grad.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.beginPath();
+            ctx.moveTo(s.x, s.y);
+            ctx.lineTo(s.x - dx, s.y - dy);
+            ctx.strokeStyle = grad;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            s.x += Math.cos(s.angle)*s.speed;
+            s.y += Math.sin(s.angle)*s.speed;
+            s.alpha -= 0.018;
+        });
+
+        requestAnimationFrame(draw);
+    }
+
+    window.addEventListener('resize', ()=>{ resize(); initStars(); });
+    resize(); initStars(); draw();
+})();
+
+
+/* ── GAME LOGIC (unchanged) ── */
+let board=[],flipped=[],matched=[];
+let moves=0,time=0,timer;
+let sound=true;
+let currentLevel=1;
+
+const themes={
+ emojis:["😀","😎","🤖","👻","🔥","🎉","💎","🚀"],
+ animals:["🐶","🐱","🐼","🦁","🐸","🐵","🐯","🐰"],
+ fruits:["🍎","🍌","🍇","🍉","🍓","🍍","🥝","🍒"],
+ sports:["⚽","🏀","🏈","🎾","🏐","🏓","🥊","🏏"],
+ vehicles:["🚗","🚕","🚙","🚌","🏎","🚓","🚑","✈️"],
+ space:["🌍","🌙","⭐","☄️","🪐","🚀","🌌","👽"]
+};
+
+function show(id){
+ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+ document.getElementById(id).classList.add('active');
+}
+
+function showPlay(){
+ generateLevels();
+ show('levels');
+}
+
+function showSettings(){show('settings');}
+function backMenu(){show('menu');}
+function backLevels(){show('levels');}
+
+function generateLevels(){
+ const box=document.getElementById('levelBox');
+ box.innerHTML='';
+ let unlocked=parseInt(localStorage.getItem('unlocked')||1);
+
+ for(let i=1;i<=20;i++){
+    let d=document.createElement('div');
+    d.className='level'+(i>unlocked?' locked':'');
+    d.innerText='Level '+i;
+    d.onclick=()=>startGame(i);
+    box.appendChild(d);
+ }
+}
+
+function startGame(lvl){
+ currentLevel=lvl;
+ document.getElementById('lvl').innerText=lvl;
+
+ let grid=parseInt(document.getElementById('grid').value);
+ let theme=document.getElementById('theme').value;
+ sound=document.getElementById('sound').value==='on';
+
+ board=[];flipped=[];matched=[];
+moves=0;time=0;
+
+ document.getElementById('moves').innerText=0;
+ document.getElementById('time').innerText=0;
+
+ let pool=[...themes[theme]];
+ let need=(grid*grid)/2;
+ pool=pool.sort(()=>Math.random()-0.5).slice(0,need);
+ board=[...pool,...pool].sort(()=>Math.random()-0.5);
+
+ let el=document.getElementById('board');
+ el.innerHTML='';
+ el.style.gridTemplateColumns=`repeat(${grid},65px)`;
+
+ board.forEach((v,i)=>{
+    let c=document.createElement('div');
+    c.className='card';
+    c.innerHTML=`<div class='inner'><div class='front'></div><div class='back'>${v}</div></div>`;
+    c.onclick=()=>flip(c,i);
+    el.appendChild(c);
+ });
+
+ show('game');
+
+ timer=setInterval(()=>{
+    time++;document.getElementById('time').innerText=time;
+ },1000);
+}
+
+function beep(){if(!sound)return;
+ let ctx=new (window.AudioContext||window.webkitAudioContext)();
+ let o=ctx.createOscillator();
+ o.frequency.value=500;o.connect(ctx.destination);o.start();setTimeout(()=>o.stop(),80);
+}
+
+function flip(card,i){
+ if(card.classList.contains('flip')||matched.includes(i)||flipped.length===2)return;
+ card.classList.add('flip');beep();flipped.push(i);
+ if(flipped.length===2)setTimeout(check,600);
+}
+
+function check(){
+ let [a,b]=flipped;
+ let cards=document.querySelectorAll('.card');
+
+ if(board[a]===board[b]){
+    matched.push(a,b);
+ }else{
+    cards[a].classList.remove('flip');
+    cards[b].classList.remove('flip');
+ }
+
+ flipped=[];
+ moves++;
+ document.getElementById('moves').innerText=moves;
+
+ if(matched.length===board.length){
+    clearInterval(timer);
+    win();
+ }
+}
+
+function win(){
+ confetti();
+ let unlocked=parseInt(localStorage.getItem('unlocked')||1);
+ if(currentLevel>=unlocked){
+    localStorage.setItem('unlocked',currentLevel+1);
+ }
+ setTimeout(()=>{
+    alert('LEVEL COMPLETE 🎉');
+    show('levels');
+ },500);
+}
+
+function confetti(){
+ const c=document.getElementById('confetti');
+ c.innerHTML='';
+ for(let i=0;i<80;i++){
+    let d=document.createElement('div');
+    d.className='piece';
+    d.style.left=Math.random()*100+'%';
+    d.style.background=['red','blue','yellow','green','purple'][Math.floor(Math.random()*5)];
+    d.style.animationDuration=(1+Math.random()*2)+'s';
+    c.appendChild(d);
+ }
+}
+
+function resetProgress(){
+ localStorage.removeItem('unlocked');
+ alert('Progress Reset');
+}
+</script>
+
+</body>
+</html>

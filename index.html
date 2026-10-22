@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Memory CARD</title>
+<title>Memory Card Game AAA</title>
 
 <style>
     body{
@@ -79,6 +79,7 @@
 
     button{background:#6a0dad; color:white; transition:0.3s;}
     button:hover{transform:scale(1.05);}
+    button.active-sound{background:#28a745; outline: 2px solid #fff;}
 
     .menu-btn{width:220px; display:block; margin:10px auto; font-size:18px;}
 
@@ -183,7 +184,7 @@
 
 <!-- MENU -->
 <div id="menu" class="screen active">
-    <h1>MEMORY CARD</h1>
+    <h1>MEMORY AAA</h1>
     <button class="menu-btn" onclick="showPlay()">▶ PLAY</button>
     <button class="menu-btn" onclick="showSettings()">⚙ SETTINGS</button>
     <button class="menu-btn" onclick="resetProgress()">♻ RESET PROGRESS</button>
@@ -198,6 +199,18 @@
         <option value="on">ON</option>
         <option value="off">OFF</option>
     </select>
+
+    <br><br>
+
+    Sound Style
+    <br>
+    <div id="soundThemeBtns" style="margin:8px auto; display:flex; flex-wrap:wrap; justify-content:center; gap:8px; max-width:500px;">
+        <button onclick="setSoundTheme('piano')"   id="st-piano"   style="min-width:120px;">🎹 Piano</button>
+        <button onclick="setSoundTheme('water')"   id="st-water"   style="min-width:120px;">💧 Water Drops</button>
+        <button onclick="setSoundTheme('retro')"   id="st-retro"   style="min-width:120px;">🕹️ Retro Lo-fi</button>
+        <button onclick="setSoundTheme('magical')" id="st-magical" style="min-width:120px;">✨ Magical</button>
+    </div>
+    <small style="opacity:0.6;">Tap a style to preview it</small>
 
     <br><br>
 
@@ -242,7 +255,17 @@
 
     <div class="board" id="board"></div>
 
-    <button onclick="backLevels()">EXIT</button>
+    <!-- Win overlay shown after level complete -->
+    <div id="winOverlay" style="display:none; margin-top:20px;">
+        <h2 style="color:#f0c040;">🎉 LEVEL COMPLETE!</h2>
+        <p style="opacity:0.8;">Moves: <span id="winMoves"></span> &nbsp;|&nbsp; Time: <span id="winTime"></span>s</p>
+        <button onclick="nextLevel()" style="font-size:18px; padding:12px 30px; background:#28a745; margin:6px;">▶ NEXT LEVEL</button>
+        <button onclick="backLevels()" style="font-size:18px; padding:12px 30px; margin:6px;">📋 LEVELS</button>
+    </div>
+
+    <div id="exitBtn">
+        <button onclick="backLevels()" style="margin-top:12px;">EXIT</button>
+    </div>
 </div>
 
 <script>
@@ -349,9 +372,12 @@ function showPlay(){
  show('levels');
 }
 
-function showSettings(){show('settings');}
 function backMenu(){show('menu');}
-function backLevels(){show('levels');}
+function backLevels(){
+ clearInterval(timer);
+ generateLevels();
+ show('levels');
+}
 
 function generateLevels(){
  const box=document.getElementById('levelBox');
@@ -376,7 +402,9 @@ function startGame(lvl){
  sound=document.getElementById('sound').value==='on';
 
  board=[];flipped=[];matched=[];
-moves=0;time=0;
+ moves=0;time=0;
+ document.getElementById('winOverlay').style.display='none';
+ document.getElementById('exitBtn').style.display='block';
 
  document.getElementById('moves').innerText=0;
  document.getElementById('time').innerText=0;
@@ -405,10 +433,112 @@ moves=0;time=0;
  },1000);
 }
 
-function beep(){if(!sound)return;
- let ctx=new (window.AudioContext||window.webkitAudioContext)();
- let o=ctx.createOscillator();
- o.frequency.value=500;o.connect(ctx.destination);o.start();setTimeout(()=>o.stop(),80);
+// One shared AudioContext
+let audioCtx = null;
+let currentSoundTheme = localStorage.getItem('soundTheme') || 'retro';
+
+function getAudioCtx(){
+ if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+ if(audioCtx.state === 'suspended') audioCtx.resume();
+ return audioCtx;
+}
+
+function playNote(freq, duration, type='sine', vol=0.1, fadeIn=0.01){
+ if(!sound) return;
+ try {
+  const ctx = getAudioCtx();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, ctx.currentTime);
+  gain.gain.setValueAtTime(0, ctx.currentTime);
+  gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + fadeIn);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(ctx.currentTime); osc.stop(ctx.currentTime + duration);
+ } catch(e){}
+}
+
+const soundThemes = {
+ retro: {
+  flip:  ()=>{ playNote(220, 0.12, 'square', 0.07, 0.01); },
+  match: ()=>{ playNote(330, 0.15, 'square', 0.08); setTimeout(()=>playNote(440, 0.18, 'square', 0.08), 100); },
+  win:   ()=>{ [262,330,392,523].forEach((f,i)=>setTimeout(()=>playNote(f,0.2,'square',0.09),i*110)); }
+ },
+ piano: {
+  flip:  ()=>{ playNote(523, 0.4, 'sine', 0.10, 0.005); },
+  match: ()=>{ playNote(659, 0.5, 'sine', 0.10, 0.005); setTimeout(()=>playNote(784,0.5,'sine',0.09,0.005),130); },
+  win:   ()=>{ [523,659,784,1047].forEach((f,i)=>setTimeout(()=>playNote(f,0.55,'sine',0.10,0.005),i*160)); }
+ },
+ water: {
+  flip: ()=>{
+   // water drop: pitch bends down quickly
+   try{
+    const ctx=getAudioCtx(); const osc=ctx.createOscillator(); const gain=ctx.createGain();
+    osc.type='sine';
+    osc.frequency.setValueAtTime(900, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime+0.18);
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.22);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime+0.25);
+   }catch(e){}
+  },
+  match: ()=>{
+   [700,500].forEach((f,i)=>setTimeout(()=>{
+    try{
+     const ctx=getAudioCtx(); const osc=ctx.createOscillator(); const gain=ctx.createGain();
+     osc.type='sine';
+     osc.frequency.setValueAtTime(f, ctx.currentTime);
+     osc.frequency.exponentialRampToValueAtTime(f*0.4, ctx.currentTime+0.22);
+     gain.gain.setValueAtTime(0.11, ctx.currentTime);
+     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.25);
+     osc.connect(gain); gain.connect(ctx.destination);
+     osc.start(ctx.currentTime); osc.stop(ctx.currentTime+0.28);
+    }catch(e){}
+   },i*140));
+  },
+  win: ()=>{ [900,700,500,350].forEach((f,i)=>setTimeout(()=>{
+   try{
+    const ctx=getAudioCtx(); const osc=ctx.createOscillator(); const gain=ctx.createGain();
+    osc.type='sine';
+    osc.frequency.setValueAtTime(f, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(f*0.4, ctx.currentTime+0.3);
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.35);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime+0.38);
+   }catch(e){}
+  },i*140)); }
+ },
+ magical: {
+  flip:  ()=>{ playNote(1047, 0.25, 'sine', 0.08, 0.01); setTimeout(()=>playNote(1319,0.2,'sine',0.06,0.01),80); },
+  match: ()=>{ [1047,1319,1568].forEach((f,i)=>setTimeout(()=>playNote(f,0.3,'sine',0.08,0.01),i*80)); },
+  win:   ()=>{ [784,1047,1319,1568,2093].forEach((f,i)=>setTimeout(()=>playNote(f,0.35,'sine',0.09,0.01),i*120)); }
+ }
+};
+
+function beep()     { soundThemes[currentSoundTheme].flip();  }
+function playMatch(){ soundThemes[currentSoundTheme].match(); }
+function playWin()  { soundThemes[currentSoundTheme].win();   }
+
+function setSoundTheme(t){
+ currentSoundTheme = t;
+ localStorage.setItem('soundTheme', t);
+ highlightSoundTheme();
+ soundThemes[t].flip();
+}
+
+function highlightSoundTheme(){
+ ['piano','water','retro','magical'].forEach(t=>{
+  const btn = document.getElementById('st-'+t);
+  if(btn) btn.classList.toggle('active-sound', t === currentSoundTheme);
+ });
+}
+
+function showSettings(){
+ highlightSoundTheme();
+ show('settings');
 }
 
 function flip(card,i){
@@ -423,6 +553,7 @@ function check(){
 
  if(board[a]===board[b]){
     matched.push(a,b);
+    playMatch();
  }else{
     cards[a].classList.remove('flip');
     cards[b].classList.remove('flip');
@@ -440,14 +571,24 @@ function check(){
 
 function win(){
  confetti();
- let unlocked=parseInt(localStorage.getItem('unlocked')||1);
- if(currentLevel>=unlocked){
-    localStorage.setItem('unlocked',currentLevel+1);
- }
- setTimeout(()=>{
-    alert('LEVEL COMPLETE 🎉');
-    show('levels');
- },500);
+ playWin();
+ // Always unlock next level, never downgrade existing progress
+ let unlocked = parseInt(localStorage.getItem('unlocked')||1);
+ let newUnlocked = Math.max(unlocked, currentLevel + 1);
+ localStorage.setItem('unlocked', newUnlocked);
+ // Show win overlay instead of alert
+ document.getElementById('winMoves').innerText = moves;
+ document.getElementById('winTime').innerText = time;
+ document.getElementById('winOverlay').style.display = 'block';
+ document.getElementById('exitBtn').style.display = 'none';
+}
+
+function nextLevel(){
+ let next = currentLevel + 1;
+ if(next > 20){ backLevels(); return; }
+ document.getElementById('winOverlay').style.display = 'none';
+ document.getElementById('exitBtn').style.display = 'block';
+ startGame(next);
 }
 
 function confetti(){

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Memory Card Game AAA</title>
+<title>Memory Card</title>
 
 <style>
     body{
@@ -13,9 +13,10 @@
         color:white;
         display:flex;
         justify-content:center;
-        align-items:center;
+        align-items:flex-start;
         min-height:100vh;
-        overflow:hidden;
+        overflow-y:auto;
+        overflow-x:hidden;
         flex-direction:column;
     }
 
@@ -63,7 +64,7 @@
     /* Everything else above the bg */
     .screen, #confetti{ position:relative; z-index:1; }
 
-    .screen{display:none; width:100%; max-width:850px; text-align:center; margin:0 auto;}
+    .screen{display:none; width:100%; max-width:900px; text-align:center; margin:0 auto; padding:20px 16px 40px; box-sizing:border-box;}
     .active{display:block;}
 
     h1{letter-spacing:3px;}
@@ -85,19 +86,25 @@
 
     .levels{
         display:grid;
-        grid-template-columns:repeat(4,1fr);
-        gap:10px;
+        grid-template-columns:repeat(5,1fr);
+        gap:8px;
         margin-top:20px;
     }
 
     .level{
-        padding:18px;
+        padding:12px 8px;
         background:rgba(255,255,255,0.08);
         border-radius:12px;
         cursor:pointer;
         transition:0.3s;
+        font-size:13px;
     }
     .level:hover{transform:scale(1.05); background:rgba(255,255,255,0.18);}
+    .level .diff{ font-size:10px; margin-top:4px; opacity:0.75; }
+    .diff-easy   { color:#4fc; }
+    .diff-medium { color:#fa0; }
+    .diff-hard   { color:#f64; }
+    .diff-expert { color:#f0f; }
 
     .locked{
         opacity:0.3;
@@ -184,15 +191,16 @@
 
 <!-- MENU -->
 <div id="menu" class="screen active">
-    <h1>MEMORY AAA</h1>
-    <button class="menu-btn" onclick="showPlay()">▶ PLAY</button>
-    <button class="menu-btn" onclick="showSettings()">⚙ SETTINGS</button>
-    <button class="menu-btn" onclick="resetProgress()">♻ RESET PROGRESS</button>
+    <h1>Memory Card</h1>
+    <button class="menu-btn" onclick="showPlay()">▶ Play</button>
+    <button class="menu-btn" onclick="showChallenges()">🏆 Challenges</button>
+    <button class="menu-btn" onclick="showSettings()">⚙ Settings</button>
+    <button class="menu-btn" onclick="resetProgress()">♻ Reset Progress</button>
 </div>
 
 <!-- SETTINGS -->
 <div id="settings" class="screen">
-    <h1>SETTINGS</h1>
+    <h1>Settings</h1>
 
     Sound
     <select id="sound">
@@ -235,32 +243,65 @@
 
     <br><br>
 
-    <button onclick="backMenu()">BACK</button>
+    <button onclick="backMenu()">Back</button>
 </div>
 
 <!-- LEVELS -->
 <div id="levels" class="screen">
-    <h1>LEVELS</h1>
+    <h1>Levels</h1>
     <div class="levels" id="levelBox"></div>
-    <button onclick="backMenu()">BACK</button>
+    <button onclick="backMenu()">Back</button>
+</div>
+
+<!-- CHALLENGES -->
+<div id="challenges" class="screen">
+    <h1>🏆 Challenges</h1>
+    <p style="opacity:0.6; margin-top:-10px;">Special goals — can you beat them all?</p>
+    <div id="challengeList" style="display:flex; flex-direction:column; gap:12px; margin-top:16px;"></div>
+    <button onclick="backMenu()" style="margin-top:24px;">Back</button>
+</div>
+
+<!-- CHALLENGE GAME -->
+<div id="cgame" class="screen">
+    <div class="topbar">
+        <div>Moves: <span id="cmoves">0</span> <span id="cmoveLimit" style="opacity:0.5;"></span></div>
+        <div id="ctimeBox">Time: <span id="ctime">0</span>s <span id="ctimeLimit" style="opacity:0.5;"></span></div>
+        <div><span id="cname" style="font-size:12px; color:#adf;"></span></div>
+    </div>
+    <div class="board" id="cboard"></div>
+    <div id="cwinOverlay" style="display:none; margin-top:20px;">
+        <h2 style="color:#f0c040;">🎉 Challenge Complete!</h2>
+        <p id="cwinMsg" style="opacity:0.8;"></p>
+        <button onclick="showChallenges()" style="font-size:16px; padding:10px 26px; background:#28a745; margin:6px;">🏆 Challenges</button>
+        <button onclick="backMenu()" style="font-size:16px; padding:10px 26px; margin:6px;">🏠 Menu</button>
+    </div>
+    <div id="cfailOverlay" style="display:none; margin-top:20px;">
+        <h2 style="color:#f64;">❌ Challenge Failed!</h2>
+        <p id="cfailMsg" style="opacity:0.8;"></p>
+        <button onclick="restartChallenge()" style="font-size:16px; padding:10px 26px; background:#e07800; margin:6px;">🔄 Restart</button>
+        <button onclick="showChallenges()" style="font-size:16px; padding:10px 26px; margin:6px;">🏆 Challenges</button>
+    </div>
+    <div id="cexitBtn">
+        <button onclick="showChallenges()" style="margin-top:12px;">Exit Challenge</button>
+    </div>
 </div>
 
 <!-- GAME -->
 <div id="game" class="screen">
     <div class="topbar">
         <div>Moves: <span id="moves">0</span></div>
-        <div>Time: <span id="time">0</span>s</div>
-        <div>Level: <span id="lvl">1</span></div>
+        <div>Time: <span id="time">0</span>s <span id="timeLimit" style="opacity:0.5;"></span></div>
+        <div>Level: <span id="lvl">1</span> &nbsp;<span id="diffLabel" style="font-size:11px;"></span></div>
     </div>
 
     <div class="board" id="board"></div>
 
     <!-- Win overlay shown after level complete -->
     <div id="winOverlay" style="display:none; margin-top:20px;">
-        <h2 style="color:#f0c040;">🎉 LEVEL COMPLETE!</h2>
+        <h2 style="color:#f0c040;">🎉 Level Complete!</h2>
         <p style="opacity:0.8;">Moves: <span id="winMoves"></span> &nbsp;|&nbsp; Time: <span id="winTime"></span>s</p>
-        <button onclick="nextLevel()" style="font-size:18px; padding:12px 30px; background:#28a745; margin:6px;">▶ NEXT LEVEL</button>
-        <button onclick="backLevels()" style="font-size:18px; padding:12px 30px; margin:6px;">📋 LEVELS</button>
+        <button onclick="nextLevel()" style="font-size:18px; padding:12px 30px; background:#28a745; margin:6px;">▶ Next Level</button>
+        <button onclick="backLevels()" style="font-size:18px; padding:12px 30px; margin:6px;">📋 Levels</button>
     </div>
 
     <div id="exitBtn">
@@ -379,63 +420,121 @@ function backLevels(){
  show('levels');
 }
 
+// Returns difficulty config for each level
+function getLevelConfig(lvl){
+ // Levels 1-10:  Easy   — 4x4 grid, no time limit
+ // Levels 11-20: Medium — 4x4 grid, 60s time limit
+ // Levels 21-35: Hard   — 6x6 grid, 90s time limit
+ // Levels 36-50: Expert — 6x6 grid, 60s time limit + cards briefly shown then hidden
+ if(lvl <= 10)  return { grid:4, timeLimit:0,  peek:0,   diff:'Easy',   diffClass:'diff-easy'   };
+ if(lvl <= 20)  return { grid:4, timeLimit:60, peek:0,   diff:'Medium', diffClass:'diff-medium' };
+ if(lvl <= 35)  return { grid:6, timeLimit:90, peek:0,   diff:'Hard',   diffClass:'diff-hard'   };
+                return { grid:6, timeLimit:60, peek:1500, diff:'Expert', diffClass:'diff-expert' };
+}
+
+const TOTAL_LEVELS = 50;
+
 function generateLevels(){
  const box=document.getElementById('levelBox');
  box.innerHTML='';
  let unlocked=parseInt(localStorage.getItem('unlocked')||1);
 
- for(let i=1;i<=20;i++){
+ for(let i=1;i<=TOTAL_LEVELS;i++){
+    const cfg = getLevelConfig(i);
     let d=document.createElement('div');
     d.className='level'+(i>unlocked?' locked':'');
-    d.innerText='Level '+i;
+    d.innerHTML=`Level ${i}<div class="diff ${cfg.diffClass}">${cfg.diff}</div>`;
     d.onclick=()=>startGame(i);
     box.appendChild(d);
  }
 }
 
+let timeLimit = 0;
+
 function startGame(lvl){
  currentLevel=lvl;
- document.getElementById('lvl').innerText=lvl;
+ const cfg = getLevelConfig(lvl);
 
- let grid=parseInt(document.getElementById('grid').value);
+ document.getElementById('lvl').innerText=lvl;
+ document.getElementById('diffLabel').innerText=cfg.diff;
+ document.getElementById('diffLabel').className=cfg.diffClass;
+ document.getElementById('timeLimit').innerText = cfg.timeLimit ? `/ ${cfg.timeLimit}s` : '';
+
  let theme=document.getElementById('theme').value;
  sound=document.getElementById('sound').value==='on';
+ timeLimit = cfg.timeLimit;
 
  board=[];flipped=[];matched=[];
  moves=0;time=0;
  document.getElementById('winOverlay').style.display='none';
  document.getElementById('exitBtn').style.display='block';
-
  document.getElementById('moves').innerText=0;
  document.getElementById('time').innerText=0;
 
- let pool=[...themes[theme]];
- let need=(grid*grid)/2;
- pool=pool.sort(()=>Math.random()-0.5).slice(0,need);
+ // Build pool — for 6x6 we need 18 pairs, combine all theme sets
+ const allEmojis = Object.values(themes).flat();
+ const themePool = [...themes[theme]];
+ // If we need more pairs than theme has, pull from all emojis
+ let need=(cfg.grid*cfg.grid)/2;
+ let pool = [...new Set([...themePool, ...allEmojis])].slice(0, need);
+ pool = pool.sort(()=>Math.random()-0.5);
  board=[...pool,...pool].sort(()=>Math.random()-0.5);
+
+ // Card size shrinks for 6x6
+ const cardSize = cfg.grid === 4 ? 65 : 52;
 
  let el=document.getElementById('board');
  el.innerHTML='';
- el.style.gridTemplateColumns=`repeat(${grid},65px)`;
+ el.style.gridTemplateColumns=`repeat(${cfg.grid},${cardSize}px)`;
 
  board.forEach((v,i)=>{
-    let c=document.createElement('div');
+    let c=document.createElement('card-el');
+    c=document.createElement('div');
     c.className='card';
-    c.innerHTML=`<div class='inner'><div class='front'></div><div class='back'>${v}</div></div>`;
+    c.style.width=cardSize+'px';
+    c.style.height=cardSize+'px';
+    c.innerHTML=`<div class='inner'><div class='front'></div><div class='back' style='font-size:${cfg.grid===4?22:16}px'>${v}</div></div>`;
     c.onclick=()=>flip(c,i);
     el.appendChild(c);
  });
 
  show('game');
+ clearInterval(timer);
 
+ // Expert mode: briefly show all cards then hide them
+ if(cfg.peek > 0){
+    document.querySelectorAll('.card').forEach(c=>c.classList.add('flip'));
+    setTimeout(()=>{
+        document.querySelectorAll('.card').forEach(c=>{
+            if(!matched.includes([...document.querySelectorAll('.card')].indexOf(c)))
+                c.classList.remove('flip');
+        });
+        startTimer();
+    }, cfg.peek);
+ } else {
+    startTimer();
+ }
+}
+
+function startTimer(){
+ clearInterval(timer);
  timer=setInterval(()=>{
-    time++;document.getElementById('time').innerText=time;
+    time++;
+    document.getElementById('time').innerText=time;
+    // Time's up!
+    if(timeLimit > 0 && time >= timeLimit){
+        clearInterval(timer);
+        setTimeout(()=>{
+            alert('⏰ Time\'s up! Try again.');
+            startGame(currentLevel);
+        }, 300);
+    }
  },1000);
 }
 
 // One shared AudioContext
 let audioCtx = null;
-let currentSoundTheme = localStorage.getItem('soundTheme') || 'retro';
+let currentSoundTheme = localStorage.getItem('soundTheme') || 'magical';
 
 function getAudioCtx(){
  if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
@@ -585,7 +684,11 @@ function win(){
 
 function nextLevel(){
  let next = currentLevel + 1;
- if(next > 20){ backLevels(); return; }
+ if(next > TOTAL_LEVELS){
+    alert('🏆 You beat all 50 levels! You\'re a Memory Card master!');
+    backLevels();
+    return;
+ }
  document.getElementById('winOverlay').style.display = 'none';
  document.getElementById('exitBtn').style.display = 'block';
  startGame(next);
@@ -607,6 +710,174 @@ function confetti(){
 function resetProgress(){
  localStorage.removeItem('unlocked');
  alert('Progress Reset');
+}
+
+/* ── CHALLENGES ── */
+const CHALLENGES = [
+ { id:'c1',  name:'Speed Demon',       desc:'Finish a 4×4 board in under 30 seconds',        grid:4, moveLimit:0,  timeLimit:30,  icon:'⚡' },
+ { id:'c2',  name:'Minimalist',        desc:'Finish a 4×4 board in 20 moves or less',         grid:4, moveLimit:20, timeLimit:0,   icon:'🎯' },
+ { id:'c3',  name:'Quick Fingers',     desc:'Finish a 4×4 board in under 60 seconds',         grid:4, moveLimit:0,  timeLimit:60,  icon:'🏃' },
+ { id:'c4',  name:'Perfect Memory',    desc:'Finish a 4×4 board in 16 moves or less',         grid:4, moveLimit:16, timeLimit:0,   icon:'🧠' },
+ { id:'c5',  name:'The Blitz',         desc:'Finish a 4×4 board in under 45s & 22 moves',    grid:4, moveLimit:22, timeLimit:45,  icon:'💥' },
+ { id:'c6',  name:'Big Board Beginner',desc:'Finish a 6×6 board in under 3 minutes',          grid:6, moveLimit:0,  timeLimit:180, icon:'🗺️' },
+ { id:'c7',  name:'Efficiency Master', desc:'Finish a 6×6 board in 40 moves or less',         grid:6, moveLimit:40, timeLimit:0,   icon:'🔬' },
+ { id:'c8',  name:'Marathon',          desc:'Finish a 6×6 board in under 2 minutes',          grid:6, moveLimit:0,  timeLimit:120, icon:'🏅' },
+ { id:'c9',  name:'Ninja',             desc:'Finish a 6×6 board in 30 moves or less',         grid:6, moveLimit:30, timeLimit:0,   icon:'🥷' },
+ { id:'c10', name:'Ultimate',          desc:'Finish a 6×6 board in under 90s & 35 moves',    grid:6, moveLimit:35, timeLimit:90,  icon:'👑' },
+];
+
+let activeChallenge = null;
+let cmoves=0, ctime=0, ctimer;
+let cboard=[], cflipped=[], cmatched=[];
+
+function showChallenges(){
+ renderChallenges();
+ show('challenges');
+}
+
+function renderChallenges(){
+ const list = document.getElementById('challengeList');
+ list.innerHTML = '';
+ CHALLENGES.forEach(ch => {
+    const done = localStorage.getItem('ch_'+ch.id) === 'done';
+    const div = document.createElement('div');
+    div.style.cssText = `
+        background:rgba(255,255,255,${done?'0.14':'0.07'});
+        border-radius:14px; padding:16px 20px;
+        display:flex; align-items:center; justify-content:space-between;
+        border:1px solid rgba(255,255,255,${done?'0.25':'0.08'});
+        cursor:pointer; transition:0.2s;
+    `;
+    div.onmouseover = ()=> div.style.background='rgba(255,255,255,0.18)';
+    div.onmouseout  = ()=> div.style.background=`rgba(255,255,255,${done?'0.14':'0.07'})`;
+    div.innerHTML = `
+        <div style="text-align:left;">
+            <div style="font-size:16px; font-weight:bold;">${ch.icon} ${ch.name} ${done?'<span style="color:#4fc;font-size:12px;">✔ Completed</span>':''}</div>
+            <div style="font-size:12px; opacity:0.65; margin-top:4px;">${ch.desc}</div>
+            <div style="font-size:11px; margin-top:6px; opacity:0.5;">
+                ${ch.grid}×${ch.grid} grid
+                ${ch.timeLimit ? ' &nbsp;⏱ '+ch.timeLimit+'s limit' : ''}
+                ${ch.moveLimit ? ' &nbsp;🎯 '+ch.moveLimit+' moves max' : ''}
+            </div>
+        </div>
+        <button style="min-width:80px; font-size:13px; padding:8px 14px; background:${done?'#28a745':'#6a0dad'};">
+            ${done ? 'Replay' : 'Start'}
+        </button>
+    `;
+    div.querySelector('button').onclick = (e)=>{ e.stopPropagation(); startChallenge(ch); };
+    list.appendChild(div);
+ });
+}
+
+let ccardsLocked = true; // prevents auto-click on entry
+
+function startChallenge(ch){
+ activeChallenge = ch;
+ cboard=[];cflipped=[];cmatched=[];
+ cmoves=0;ctime=0;
+ ccardsLocked = true;
+ clearInterval(ctimer);
+
+ document.getElementById('cname').innerText = ch.icon+' '+ch.name;
+ document.getElementById('cmoves').innerText = 0;
+ document.getElementById('ctime').innerText = 0;
+ document.getElementById('cmoveLimit').innerText = ch.moveLimit ? '/ '+ch.moveLimit : '';
+ document.getElementById('ctimeLimit').innerText = ch.timeLimit ? '/ '+ch.timeLimit+'s' : '';
+ document.getElementById('cwinOverlay').style.display  = 'none';
+ document.getElementById('cfailOverlay').style.display = 'none';
+ document.getElementById('cexitBtn').style.display     = 'block';
+
+ const theme = document.getElementById('theme').value;
+ const allEmojis = Object.values(themes).flat();
+ const themePool = [...themes[theme]];
+ let need = (ch.grid*ch.grid)/2;
+ let pool = [...new Set([...themePool,...allEmojis])].slice(0,need).sort(()=>Math.random()-0.5);
+ cboard = [...pool,...pool].sort(()=>Math.random()-0.5);
+
+ const cardSize = ch.grid===4 ? 65 : 52;
+ const el = document.getElementById('cboard');
+ el.innerHTML='';
+ el.style.gridTemplateColumns=`repeat(${ch.grid},${cardSize}px)`;
+
+ cboard.forEach((v,i)=>{
+    const c = document.createElement('div');
+    c.className='card';
+    c.style.width=cardSize+'px';
+    c.style.height=cardSize+'px';
+    c.innerHTML=`<div class='inner'><div class='front'></div><div class='back' style='font-size:${ch.grid===4?22:16}px'>${v}</div></div>`;
+    c.onclick=()=>cflip(c,i);
+    el.appendChild(c);
+ });
+
+ show('cgame');
+
+ // Unlock cards after a short delay — prevents the Start button click
+ // from immediately registering as a card flip
+ setTimeout(()=>{ ccardsLocked = false; }, 400);
+
+ ctimer = setInterval(()=>{
+    ctime++;
+    document.getElementById('ctime').innerText=ctime;
+    if(ch.timeLimit>0 && ctime>=ch.timeLimit){
+        clearInterval(ctimer);
+        cFail('⏰ Time\'s up! You needed '+ch.timeLimit+'s but ran out.');
+    }
+ },1000);
+}
+
+function restartChallenge(){
+ startChallenge(activeChallenge);
+}
+
+function cFail(msg){
+ document.getElementById('cfailMsg').innerText = msg;
+ document.getElementById('cfailOverlay').style.display = 'block';
+ document.getElementById('cexitBtn').style.display     = 'none';
+}
+
+function cflip(card,i){
+ if(ccardsLocked||card.classList.contains('flip')||cmatched.includes(i)||cflipped.length===2)return;
+ card.classList.add('flip'); beep(); cflipped.push(i);
+ if(cflipped.length===2) setTimeout(ccheck,600);
+}
+
+function ccheck(){
+ const [a,b]=cflipped;
+ const cards=document.querySelectorAll('#cboard .card');
+ if(cboard[a]===cboard[b]){
+    cmatched.push(a,b);
+    playMatch();
+ } else {
+    cards[a].classList.remove('flip');
+    cards[b].classList.remove('flip');
+ }
+ cflipped=[];
+ cmoves++;
+ document.getElementById('cmoves').innerText=cmoves;
+
+ // Exceeded move limit — show fail overlay, no auto-reset
+ if(activeChallenge.moveLimit>0 && cmoves>activeChallenge.moveLimit){
+    clearInterval(ctimer);
+    cFail('🎯 Move limit exceeded! You used '+cmoves+' moves (limit: '+activeChallenge.moveLimit+').');
+    return;
+ }
+
+ if(cmatched.length===cboard.length){
+    clearInterval(ctimer);
+    cwin();
+ }
+}
+
+function cwin(){
+ confetti(); playWin();
+ localStorage.setItem('ch_'+activeChallenge.id,'done');
+ const ch = activeChallenge;
+ let msg = `Finished in ${ctime}s with ${cmoves} moves!`;
+ if(ch.timeLimit>0) msg += ` &nbsp;⏱ ${ctime}/${ch.timeLimit}s`;
+ if(ch.moveLimit>0) msg += ` &nbsp;🎯 ${cmoves}/${ch.moveLimit} moves`;
+ document.getElementById('cwinMsg').innerHTML = msg;
+ document.getElementById('cwinOverlay').style.display='block';
+ document.getElementById('cexitBtn').style.display='none';
 }
 </script>
 
